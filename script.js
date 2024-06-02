@@ -19,7 +19,7 @@ function loadModule(moduleName) {
 
 async function initializeGeocodingAddresses() {
   try {
-    const [esriConfig, Map, MapView, locator, Directions, RouteLayer] =
+    const [esriConfig, Map, MapView, locator, Directions, RouteLayer, LayerList, reactiveUtils] =
       await Promise.all([
         loadModule("esri/config"),
         loadModule("esri/Map"),
@@ -27,13 +27,47 @@ async function initializeGeocodingAddresses() {
         loadModule("esri/rest/locator"),
         loadModule("esri/widgets/Directions"),
         loadModule("esri/layers/RouteLayer"),
+        loadModule("esri/widgets/LayerList"),
+        loadModule("esri/core/reactiveUtils"),
 
       ]);
 
     esriConfig.apiKey =
       "AAPK002db76c90ea45519a90d66e8a496decoBktunfgOJ1_ok10cjiP6LEPiExv3nLIVKTtn5eLqDuL819o-dH9FQ8KTRWH42U8"; // Will change it
 
-      const routeLayer = new RouteLayer();
+      const routeLayer = new RouteLayer({
+        defaultSymbols: {
+          directionLines: {
+            type: "simple-line",
+            color: [0, 128, 0, 0.75],
+            width: 6,
+            cap: "square",
+            join: "miter"
+          },
+          directionPoints: {
+            type: "simple-marker",
+            size: 0,
+            color: [0, 0, 0, 0]
+          },
+          routeInfo: {
+            type: "simple-line",
+            width: 0
+          }
+          ,
+          stops: {
+            first: {
+              type: "web-style",
+              name: "car-rental",
+              styleName: "Esri2DPointSymbolsStyle"
+            },
+            last: {
+              type: "web-style",
+              name: "parking",
+              styleName: "Esri2DPointSymbolsStyle"
+            }
+          }
+        }
+      });
 
     displayMap = new Map({
       // basemap: "arcgis-light-gray",
@@ -47,24 +81,149 @@ async function initializeGeocodingAddresses() {
       container: "displayMap",
       map: displayMap,
       zoom: 14,
-      highlightOptions: {
-        color: "#39ff14",
-        haloOpacity: 0.9,
-        fillOpacity: 0,
-      },
+      // highlightOptions: {
+      //   color: "#39ff14",
+      //   haloOpacity: 0.9,
+      //   fillOpacity: 0,
+      // },
     });
 
     // new RouteLayer must be added to Directions widget
     let directionsWidget = new Directions({
+      unit: "kilometers",
       layer: routeLayer,
       apiKey: esriConfig.apiKey,
-      view
+      view,
+      visibleElements: {
+        layerDetails: false,
+        saveAsButton: false,
+        saveButton: false
+      },
+
     });
 
     // Add the Directions widget to the top right corner of the view
     view.ui.add(directionsWidget, {
       position: "top-right"
     });
+
+
+    // Use reactiveUtils to watch for route results
+    directionsWidget.viewModel.watch("lastRoute", (routeResult) => {
+      if (routeResult) {
+        console.log(routeResult);
+        const totalCosts = routeResult.routeInfo.totalCosts;
+        
+        if (totalCosts) {
+          const totalDistance = totalCosts.kilometers || "N/A";
+          const totalTime = totalCosts["travel-time"] || "N/A";
+
+          console.log(`Total Distance: ${totalDistance} km`);
+          console.log(`Total Time: ${totalTime} minutes`);
+        } else {
+          console.log("Total Costs data is not available.");
+        }
+      }
+    });
+
+
+    // directionsWidget.on("directions-finish", changeHandler);
+
+    // function changeHandler(data) {
+    //   console.log("done", data.result);
+    //     if (data.result.routeResults.length > 0) {
+    //     const features = data.result.routeResults[0].stops;
+    //     features.forEach(function (result, i) {
+    //       console.log(result.attributes.Name );
+    //     });
+    //   }
+    // }
+
+
+
+
+    const routeLayers = [routeLayer];
+
+    const layerList = new LayerList({
+      view,
+      listItemCreatedFunction: (event) => {
+        event.item.actionsSections = [
+          [
+            {
+              title: "Show Directions and Zoom to Route",
+              className: "esri-icon-navigation",
+              id: "show-directions"
+            }
+          ]
+        ]
+      }
+    });
+
+    view.ui.add(layerList, { position: "top-left", index: 6 });
+
+    layerList.on("trigger-action", (event) => {
+      for (const layer of routeLayers) {
+        if (layer === event.item.layer) {
+          if (!layer.effect) {
+            layer.effect = "bloom(1.5, 1px, 0.1)";
+            directionsWidget.layer = layer;
+            const extent = layer.routeInfo.geometry.extent.clone().expand(1.5);
+            view.goTo(extent);
+          }
+          else {
+            layer.effect = null;
+            directionsWidget.layer = layer;
+          }
+        } else {
+          layer.effect = null;
+        }
+      }
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // directionsReady();
+
+    // async function directionsReady(){
+    //   await directionsWidget.when();
+    //   directionsWidget.layer.stops.at(0).name = "Campton, NH";
+    //   directionsWidget.layer.stops.at(0).geometry = new Point({ x: -71.64133, y: 43.85191 });
+    //   directionsWidget.layer.stops.at(1).name = "Plymouth, NH";
+    //   directionsWidget.layer.stops.at(1).geometry = new Point({ x: -71.68808, y: 43.75792 });
+    // }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     // const serviceUrl = "http://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
