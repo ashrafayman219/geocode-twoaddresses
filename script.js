@@ -33,7 +33,7 @@ async function initializeGeocodingAddresses() {
       ]);
 
     esriConfig.apiKey =
-      "AAPK74e3a5fbb5854a438feab8efb8c87df5oqR9tQ_avwhI2Q96qgn0mcY_r8pmvUx0aJb6SkO6-GlbtfpahJj6zOJi_wRD_rp4"; // Will change it
+      "AAPKd7015c5bd40549d198ed7d592cc9f099sF9QSR2iGaKrU1mqQiqbldbvIDTUExU25VIJ0aLx4-8HCA0ph5T9hTJRvTI-J_DX"; // Will change it
 
       const routeLayer = new RouteLayer({
         defaultSymbols: {
