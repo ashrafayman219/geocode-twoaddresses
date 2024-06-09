@@ -19,61 +19,67 @@ function loadModule(moduleName) {
 
 async function initializeGeocodingAddresses() {
   try {
-    const [esriConfig, Map, MapView, locator, Directions, RouteLayer, LayerList, reactiveUtils] =
-      await Promise.all([
-        loadModule("esri/config"),
-        loadModule("esri/Map"),
-        loadModule("esri/views/MapView"),
-        loadModule("esri/rest/locator"),
-        loadModule("esri/widgets/Directions"),
-        loadModule("esri/layers/RouteLayer"),
-        loadModule("esri/widgets/LayerList"),
-        loadModule("esri/core/reactiveUtils"),
-
-      ]);
+    const [
+      esriConfig,
+      Map,
+      MapView,
+      locator,
+      Directions,
+      RouteLayer,
+      LayerList,
+      reactiveUtils,
+    ] = await Promise.all([
+      loadModule("esri/config"),
+      loadModule("esri/Map"),
+      loadModule("esri/views/MapView"),
+      loadModule("esri/rest/locator"),
+      loadModule("esri/widgets/Directions"),
+      loadModule("esri/layers/RouteLayer"),
+      loadModule("esri/widgets/LayerList"),
+      loadModule("esri/core/reactiveUtils"),
+    ]);
 
     esriConfig.apiKey =
       "AAPKd7015c5bd40549d198ed7d592cc9f099sF9QSR2iGaKrU1mqQiqbldbvIDTUExU25VIJ0aLx4-8HCA0ph5T9hTJRvTI-J_DX"; // Will change it
 
-      const routeLayer = new RouteLayer({
-        defaultSymbols: {
-          directionLines: {
-            type: "simple-line",
-            color: [0, 128, 0, 0.75],
-            width: 6,
-            cap: "square",
-            join: "miter"
+    const routeLayer = new RouteLayer({
+      defaultSymbols: {
+        directionLines: {
+          type: "simple-line",
+          color: [0, 128, 0, 0.75],
+          width: 6,
+          cap: "square",
+          join: "miter",
+        },
+        directionPoints: {
+          type: "simple-marker",
+          size: 0,
+          color: [0, 0, 0, 0],
+        },
+        routeInfo: {
+          type: "simple-line",
+          width: 0,
+        },
+        stops: {
+          first: {
+            type: "web-style",
+            name: "car-rental",
+            styleName: "Esri2DPointSymbolsStyle",
           },
-          directionPoints: {
-            type: "simple-marker",
-            size: 0,
-            color: [0, 0, 0, 0]
+          last: {
+            type: "web-style",
+            name: "parking",
+            styleName: "Esri2DPointSymbolsStyle",
           },
-          routeInfo: {
-            type: "simple-line",
-            width: 0
-          }
-          ,
-          stops: {
-            first: {
-              type: "web-style",
-              name: "car-rental",
-              styleName: "Esri2DPointSymbolsStyle"
-            },
-            last: {
-              type: "web-style",
-              name: "parking",
-              styleName: "Esri2DPointSymbolsStyle"
-            }
-          }
-        }
-      });
+        },
+      },
+    });
 
     displayMap = new Map({
       // basemap: "arcgis-light-gray",
       // basemap: "arcgis/navigation",
       basemap: "topo-vector",
-      layers: [routeLayer]
+      layers: [routeLayer],
     });
 
     view = new MapView({
@@ -97,35 +103,118 @@ async function initializeGeocodingAddresses() {
       visibleElements: {
         layerDetails: false,
         saveAsButton: false,
-        saveButton: false
+        saveButton: false,
       },
-
+      id: "directionsWidget",
     });
 
     // Add the Directions widget to the top right corner of the view
     view.ui.add(directionsWidget, {
-      position: "top-right"
+      position: "top-right",
     });
-
+    view.ui.add("submitButton", {
+      position: "top-right",
+    });
 
     // Use reactiveUtils to watch for route results
     directionsWidget.viewModel.watch("lastRoute", (routeResult) => {
       if (routeResult) {
         console.log(routeResult);
         const totalCosts = routeResult.routeInfo.totalCosts;
-        
-        if (totalCosts) {
+        const stops = routeResult.stops.items;
+        console.log(stops, "stops");
+
+        let stopsNames = [];
+        if (totalCosts && stops) {
           const totalDistance = totalCosts.kilometers || "N/A";
           const totalTime = totalCosts["travel-time"] || "N/A";
 
+          stops.map((s) => {
+            stopsNames.push(s.name);
+          });
+
+          // const from = s.name || "N/A";
+          // const to = s.name || "N/A";
+
+          let from, to;
+          [from, to] = stopsNames;
+          // stops.map((s) => {
+          //   const from = s.name || "N/A";
+          //   const to = s.name || "N/A";
+          // })
+
+          console.log(`from: ${from} km`);
+          console.log(`to: ${to} km`);
+
           console.log(`Total Distance: ${totalDistance} km`);
           console.log(`Total Time: ${totalTime} minutes`);
+          // alert(`Total Distance: ${totalDistance} km,
+          // Total Time: ${totalTime} minutes,
+          // From: ${from}
+          // To: ${to}
+          // `);
         } else {
           console.log("Total Costs data is not available.");
         }
       }
     });
 
+    document
+      .getElementById("submitButton")
+      .addEventListener("click", async function () {
+        const directionsWidget = view.ui.find("directionsWidget");
+
+        if (directionsWidget) {
+          const routeResult = directionsWidget.viewModel.lastRoute;
+
+          if (routeResult) {
+            const totalCosts = routeResult.routeInfo.totalCosts;
+            const stops = routeResult.stops.items;
+            let stopsNames = [];
+            if (totalCosts && stops) {
+              const totalDistance = totalCosts.kilometers || "N/A";
+              const totalTime = totalCosts["travel-time"] || "N/A";
+    
+              stops.map((s) => {
+                stopsNames.push(s.name);
+              });
+
+              let from, to;
+              [from, to] = stopsNames;
+
+              console.log(`from: ${from} km`);
+              console.log(`to: ${to} km`);
+    
+              console.log(`Total Distance: ${totalDistance} km`);
+              console.log(`Total Time: ${totalTime} minutes`);
+
+              // Get the current server's URL
+              // const baseUrl = window.location.origin;
+              const baseUrl = window.location.origin + window.location.pathname;
+              const newUrl = `${baseUrl}/submit?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&distance=${encodeURIComponent(totalDistance)}&time=${encodeURIComponent(totalTime)}`;
+              console.log(newUrl);
+
+              history.pushState(null, '', newUrl);
+
+              // // Optionally, send the data to the backend
+              // fetch(newUrl)
+              // .then(response => response.text())
+              // .then(data => {
+              //   console.log('Response:', data);
+              // })
+              // .catch(error => {
+              //   console.error('Error:', error);
+              // });
+
+              // window.open(newUrl);
+            }
+          } else {
+            alert("No route found.");
+          }
+        } else {
+          alert("Directions widget is not ready.");
+        }
+      });
 
     // directionsWidget.on("directions-finish", changeHandler);
 
@@ -139,9 +228,6 @@ async function initializeGeocodingAddresses() {
     //   }
     // }
 
-
-
-
     const routeLayers = [routeLayer];
 
     const layerList = new LayerList({
@@ -152,11 +238,11 @@ async function initializeGeocodingAddresses() {
             {
               title: "Show Directions and Zoom to Route",
               className: "esri-icon-navigation",
-              id: "show-directions"
-            }
-          ]
-        ]
-      }
+              id: "show-directions",
+            },
+          ],
+        ];
+      },
     });
 
     view.ui.add(layerList, { position: "top-left", index: 6 });
@@ -169,8 +255,7 @@ async function initializeGeocodingAddresses() {
             directionsWidget.layer = layer;
             const extent = layer.routeInfo.geometry.extent.clone().expand(1.5);
             view.goTo(extent);
-          }
-          else {
+          } else {
             layer.effect = null;
             directionsWidget.layer = layer;
           }
@@ -179,21 +264,6 @@ async function initializeGeocodingAddresses() {
         }
       }
     });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // directionsReady();
 
@@ -204,27 +274,6 @@ async function initializeGeocodingAddresses() {
     //   directionsWidget.layer.stops.at(1).name = "Plymouth, NH";
     //   directionsWidget.layer.stops.at(1).geometry = new Point({ x: -71.68808, y: 43.75792 });
     // }
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // const serviceUrl = "http://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
@@ -259,8 +308,6 @@ async function initializeGeocodingAddresses() {
     //     });
     //     return geocodereturn1;
     //   }
-
-
 
     await view.when();
 
@@ -300,13 +347,7 @@ async function addWidgets() {
   try {
     // await initializeMap();
 
-    const [
-      BasemapGallery,
-      Expand,
-      ScaleBar,
-      Search,
-      Home,
-    ] = await Promise.all([
+    const [BasemapGallery, Expand, ScaleBar, Search, Home] = await Promise.all([
       loadModule("esri/widgets/BasemapGallery"),
       loadModule("esri/widgets/Expand"),
       loadModule("esri/widgets/ScaleBar"),
@@ -354,4 +395,3 @@ async function addWidgets() {
     throw error; // Rethrow the error to handle it further, if needed
   }
 }
-
